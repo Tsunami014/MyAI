@@ -1,5 +1,4 @@
-import spacy
-import spacy.cli
+from base import NLP
 
 def is_root(token):
     return token.pos_ in {"VERB", "AUX"} and \
@@ -237,22 +236,9 @@ class TokRef(Tok):
 
 
 class Parser:
-    lang = "en"
-    MODELS = {
-        "en": "en_core_web_sm",
-    }
-
-    def __new__(cls):
-        if not hasattr(cls, "doc"):
-            model = cls.MODELS.get(cls.lang, "xx_ent_wiki_sm")
-            try:
-                cls.doc = spacy.load(model)
-            except OSError:
-                print("Downloading...")
-                spacy.cli.download(model)
-                cls.doc = spacy.load(model)
-        return super().__new__(cls)
-
+    __slots__ = ['nlp']
+    def __init__(self):
+        self.nlp = NLP()
     def debug_tree(self, token, level=0):
         base = "" if token.lemma_ == token.text else f" ({token.lemma_})"
         xtra = "" if not token.morph else " - "+str(token.morph)
@@ -264,12 +250,12 @@ class Parser:
         return '\n'.join(outs)
 
     def dbug(self, txt):
-        doc = self.doc(txt)
+        doc = self.nlp(txt)
         roots = [t for t in doc if is_root(t)]
         return '\n'.join(self.debug_tree(r) for r in roots)
 
     def __call__(self, txt):
-        doc = self.doc(txt)
+        doc = self.nlp(txt)
         roots = [Tok(t) for t in doc if is_root(t)]
         for r in roots:
             r.prune_children(roots)

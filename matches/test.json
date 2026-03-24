@@ -1,0 +1,5 @@
+{
+    "HELLO": [
+        [{"LOWER": "hello"}, {"IS_PUNCT": true}, {"LOWER": "world"}]
+    ]
+}
