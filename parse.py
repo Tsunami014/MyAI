@@ -1,6 +1,10 @@
 import spacy
 import spacy.cli
 
+def is_root(token):
+    return token.pos_ in {"VERB", "AUX"} and \
+        (token.dep_ in {"ROOT", "conj"} or token.dep_[1:] == "comp")
+
 class QualityTypes:
     VALUE = 'V'
     MODIFIER = 'M'
@@ -113,7 +117,8 @@ class Tok:
                 "Sing": "one",
                 "Dual": "two",
                 "Tri": "three",
-                "Plur": "four",
+                "Plur": "several",
+                "Ptan": "one", # scissors
                 "Pauc": "a few",
             },
             "Person": {
@@ -121,29 +126,64 @@ class Tok:
                 "2": "2ndPerson",
                 "3": "3rdPerson",
             },
+            "Tense": {
+                "Past": "past",
+                "Imp": "past",
+                "Pqp": "past",
+                "Pres": "present",
+                "Fut": "future",
+            },
+            "Aspect": {
+                "Imp": "happening",
+                "Perf": "done",
+                "Prosp": "will be done",
+                "Prog": "happening",
+                "Hab": "does often",
+                "Iter": "does multiple times",
+            },
+            "Mood": {
+                "Ind": "statement", # Something is happening
+                "Cnd": "not statement", # Something is NOT happening
+                "Pot": "can statement", # Something CAN happen
+                "Jus": "wish statement", # I WISH something happened
+                "Prp": "going to statement", # I am GOING TO do something
+                "Qot": "quoting statement", # This was said to have happened
+
+                "Opt": "expression", # I wish I were rich!
+                "Imp": "order", # Eat your vegetables!
+                "Des": "want", # I want to eat
+                "Nec": "necessity", # I should eat
+                "Int": "yesnoQ", # Have you eaten?
+                "Irr": "irrealis", # Let me be at the table
+                "Adm": "doubt", # You ate food?
+            },
         }, self.personalInfo)
 
     def Usage(self):
+        if is_root(self.tok):
+            return "root"
         pos = self.tok.pos_
         rel = self.tok.dep_
         if rel == "prep" or pos == "ADP":
             return "link"
-        if rel == "advmod":
+        if "advmod" in rel:
             return "modifier"
-        if "subj" in rel or "obj" in rel or "comp" in rel:
+        if rel in {"compound", "discourse"}:
+            return rel
+        if "subj" in rel:
             return "subject"
+        if "obj" in rel or "comp" in rel:
+            return "object"
         if rel == "mark":
             return "clause"
-        if rel == "discourse":
-            return "discourse"
-        if pos in {"ADJ", "ADV"}:
-            return "description"
         if pos in {"ADJ", "ADV"}:
             return "description"
         return ""
     def Type(self):
+        if is_root(self.tok):
+            return "root"
         pos = self.tok.pos_
-        if pos in {"VERB", "AUX"}:
+        if pos == "VERB":
             return "event"
         if pos in {"NOUN", "PROPN", "PRON"}:
             return "object"
@@ -213,10 +253,6 @@ class Parser:
                 cls.doc = spacy.load(model)
         return super().__new__(cls)
 
-    def is_root(self, token):
-        return token.pos_ in {"VERB", "AUX"} and \
-            token.dep_ in {"ROOT", "conj"}
-
     def debug_tree(self, token, level=0):
         base = "" if token.lemma_ == token.text else f" ({token.lemma_})"
         xtra = "" if not token.morph else " - "+str(token.morph)
@@ -229,12 +265,12 @@ class Parser:
 
     def dbug(self, txt):
         doc = self.doc(txt)
-        roots = [t for t in doc if self.is_root(t)]
+        roots = [t for t in doc if is_root(t)]
         return '\n'.join(self.debug_tree(r) for r in roots)
 
     def __call__(self, txt):
         doc = self.doc(txt)
-        roots = [Tok(t) for t in doc if self.is_root(t)]
+        roots = [Tok(t) for t in doc if is_root(t)]
         for r in roots:
             r.prune_children(roots)
 
