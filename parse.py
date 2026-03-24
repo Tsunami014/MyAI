@@ -2,10 +2,49 @@ import spacy
 import spacy.cli
 
 class Tok:
-    __slots__ = ['tok', 'children']
+    __slots__ = ['tok', 'children', 'info']
     def __init__(self, token):
         self.tok = token
-        self.children = [Tok(i) for i in token.children]
+        self.children = []
+        self.info = self.thisApplication()
+        for c in token.children:
+            t = Tok(c)
+            appl, keep = t.application()
+            if keep:
+                self.children.append(t)
+            self.info.extend(appl)
+
+    def application(self):
+        if self.tok.pos_ == "PUNC" or "punc" in self.tok.dep_:
+            return [], True
+        appls = []
+        keep = True
+        if self.tok.pos_ == "PART":
+            keep = False
+            morph = self.tok.morph.to_dict()
+            for k, v in morph.items():
+                if k == "Polarity":
+                    pols = {"Neg": 'no', "Pos": 'yes'}
+                    if v in pols:
+                        appls.append(pols[v])
+        return appls, keep
+
+    def thisApplication(self):
+        appls = []
+        morph = self.tok.morph.to_dict()
+        for k, v in morph.items():
+            if k == "Number":
+                if v == 'Sing':
+                    appls.append("One")
+                elif v == 'Dual':
+                    appls.append("Two")
+                elif v == 'Tri':
+                    appls.append("Three")
+                elif v == 'Plur':
+                    appls.append("Several")
+                elif v == 'Pauc':
+                    appls.append("A few")
+        return appls
 
     def __eq__(self, oth):
         return oth.tok == self.tok
@@ -16,8 +55,9 @@ class Tok:
             c.prune_children(roots)
 
     def __str__(self):
-        xtra = "" if not self.tok.morph else " - "+str(self.tok.morph)
-        return f"{self.tok.text} ({self.tok.lemma_}) {self.tok.pos_}, {self.tok.dep_}"+xtra
+        base = "" if self.tok.lemma_ == self.tok.text else f" ({self.tok.lemma_})"
+        xtra = "" if not self.tok.morph else " - "+", ".join(self.info)
+        return f"{self.tok.text}{base} {self.tok.pos_}, {self.tok.dep_}"+xtra
     def __repr__(self):
         return self.tok.text
 
@@ -44,6 +84,7 @@ class Root(Tok):
         self.head = token.head
         while self.head.head != self.head:
             self.head = self.head.head
+
 
 class Parser:
     lang = "en"
