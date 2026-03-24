@@ -36,6 +36,9 @@ class Tok:
                 self.children.append(t)
             self.info.extend(appl)
         self.thisApplication()
+        self.parse()
+    def parse(self):
+        pass
 
     def _apply_map(self, morph, mapping, appls):
         for k, v in morph.items():
@@ -80,25 +83,23 @@ class Tok:
         if self.tok.pos_ in {"PART", "DET"} or self.tok.dep_ in {"det"}:
             keep = False
 
-        if ontotok.pos_ in {"NOUN", "PRON", "ADJ", "ADV"} and self.tok.pos_ in {"PRON", "ADJ", "ADV"}:
+        if self.tok.pos_ == "PRON" and "PronType" in morph:
+            vals = {
+                "Prs": "I",
+                "Rcp": "we",
+                "Art": "a",
+                "Int": "?",
+                "Tot": "everyone",
+                "Neg": "noone",
+                "Ind": "some"
+            }
+            typ = morph["PronType"]
+            if typ in vals:
+                keep = False
+                appls.append(Quality(vals[typ], QualityTypes.VALUE, self.personalInfo))
+        if keep and ontotok.pos_ in {"PROPN", "NOUN", "PRON", "ADJ", "ADV"} and self.tok.pos_ in {"PRON", "ADJ", "ADV"}:
             keep = False
-            done = False
-            if self.tok.pos_ == "PRON" and "PronType" in morph:
-                vals = {
-                    "Prs": "I",
-                    "Rcp": "we",
-                    "Art": "a",
-                    "Int": "?",
-                    "Tot": "everyone",
-                    "Neg": "noone",
-                    "Ind": "some"
-                }
-                typ = morph["PronType"]
-                if typ in vals:
-                    appls.append(Quality(vals[typ], QualityTypes.VALUE, self.personalInfo))
-                    done = True
-            if not done:
-                appls.append(Quality(self.tok.text, QualityTypes.MODIFIER, self.personalInfo))
+            appls.append(Quality(self.tok.norm_, QualityTypes.MODIFIER, self.personalInfo))
 
         if keep:
             return appls, True
@@ -122,6 +123,32 @@ class Tok:
             },
         }, self.personalInfo)
 
+    def Usage(self):
+        pos = self.tok.pos_
+        rel = self.tok.dep_
+        if rel == "prep" or pos == "ADP":
+            return "link"
+        if rel == "advmod":
+            return "modifier"
+        if "subj" in rel or "obj" in rel or "comp" in rel:
+            return "subject"
+        if rel == "mark":
+            return "clause"
+        if rel == "discourse":
+            return "discourse"
+        if pos in {"ADJ", "ADV"}:
+            return "description"
+        if pos in {"ADJ", "ADV"}:
+            return "description"
+        return ""
+    def Type(self):
+        pos = self.tok.pos_
+        if pos in {"VERB", "AUX"}:
+            return "event"
+        if pos in {"NOUN", "PROPN", "PRON"}:
+            return "object"
+        return ""
+
     def __eq__(self, oth):
         return oth.tok == self.tok
 
@@ -131,10 +158,22 @@ class Tok:
             c.prune_children(roots)
 
     def __str__(self):
+        use = self.Usage()
+        typ = self.Type()
+        if use and typ:
+            pref = f"{use} <{typ}>: "
+        elif not (use or typ):
+            pref = ""
+        else:
+            pref = (use or f"<{typ}>") + "\033[0m: "
+
         base = "" if self.tok.lemma_ == self.tok.text else f" ({self.tok.lemma_})"
+        mid = f" {self.tok.pos_}, {self.tok.dep_}"
+
         xtra1 = "" if not self.personalInfo else " - "+", ".join(str(i) for i in self.personalInfo)
         xtra2 = "" if not self.info else " - "+", ".join(str(i) for i in self.info)
-        return f"{self.tok.text}{base} {self.tok.pos_}, {self.tok.dep_}"+xtra1+xtra2
+        return "│\033[32m"+pref+"\033[35;1m" + self.tok.norm_+base+"\033[0;33m"+mid+"\033[0m" + xtra1+xtra2
+        #return pref + self.tok.norm_+base+mid + xtra1+xtra2
     def __repr__(self):
         return self.tok.text
 
@@ -155,14 +194,6 @@ class TokRef(Tok):
         self.thisApplication()
     def __str__(self):
         return "-> "+super().__str__()
-
-class Root(Tok):
-    __slots__ = ['head']
-    def __init__(self, token):
-        super().__init__(token)
-        self.head = token.head
-        while self.head.head != self.head:
-            self.head = self.head.head
 
 
 class Parser:
@@ -203,7 +234,7 @@ class Parser:
 
     def __call__(self, txt):
         doc = self.doc(txt)
-        roots = [Root(t) for t in doc if self.is_root(t)]
+        roots = [Tok(t) for t in doc if self.is_root(t)]
         for r in roots:
             r.prune_children(roots)
 
