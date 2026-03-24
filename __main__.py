@@ -10,10 +10,11 @@ brk = False
 while True:
     print("\033[2J\033[1;1H\033[0m", end="")
     print(txt)
-    if txt == "":
-        parsed = "\n\033[90mNo text yet"
+    out = p(txt)
+    if out == "":
+        parsed = "\n\033[90mNo output"
     else:
-        parsed = "\n\033[33m"+p(txt)
+        parsed = "\n\033[33m"+out
     if brk:
         print(parsed)
         break
