@@ -10,7 +10,7 @@ brk = False
 while True:
     print("\033[2J\033[1;1H\033[0m", end="")
     print(txt)
-    out = p(txt)
+    out = p.dbug(txt)
     if out == "":
         parsed = "\n\033[90mNo output"
     else:

@@ -47,8 +47,8 @@ class Tok:
                         break
 
     def application(self, ontotok):
-        if self.tok.pos_ == "PUNC" or "punc" in self.tok.dep_:
-            return [], True
+        if "PUNC" in self.tok.pos_ or "punc" in self.tok.dep_:
+            return [], False
         appls = []
         keep = True
         morph = self.tok.morph.to_dict()
@@ -151,6 +151,8 @@ class TokRef(Tok):
     def __init__(self, token):
         self.tok = token.tok
         self.children = []
+        self.info = []
+        self.thisApplication()
     def __str__(self):
         return "-> "+super().__str__()
 
@@ -182,7 +184,7 @@ class Parser:
 
     def is_root(self, token):
         return token.pos_ in {"VERB", "AUX"} and \
-            token.dep_ in {"ROOT", "conj", "advcl"}
+            token.dep_ in {"ROOT", "conj"}
 
     def debug_tree(self, token, level=0):
         base = "" if token.lemma_ == token.text else f" ({token.lemma_})"
