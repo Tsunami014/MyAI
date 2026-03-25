@@ -327,6 +327,7 @@ class Generator:
 
 class Combination(Joiner, Rule):
     _OPTS = {
+        "?": lambda _: True,
         "!": lambda a: not a,
         "|": Generator.OR,
         "&": Generator.AND,
@@ -391,6 +392,7 @@ class Match:
 
     def parser(self):
         collected = ""
+        comment = False
         out = []
         last = None
 
@@ -410,14 +412,19 @@ class Match:
             c = yield
             if c is None:
                 break
-            if c in '()':
-                end()
-                collected = c
-                end()
-            elif c in '\n\t ':
-                end()
-            else:
-                collected += c
+            if c == '\\':
+                comment = not comment
+            elif comment and c == '\n':
+                comment = False
+            if not comment:
+                if c in '()':
+                    end()
+                    collected = c
+                    end()
+                elif c in '\n\t ':
+                    end()
+                else:
+                    collected += c
 
         # Cleanup, check for incomplete parsing
         if last is not None:

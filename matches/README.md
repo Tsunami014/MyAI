@@ -69,6 +69,7 @@ Can use brackets `()` for control over the ordering of these
 These can apply to either criteria or connections (a criteria is just a node existing), but will default to combining criteria unless you use brackets
 They are calculated in this order of operations:
 - `!A` A must not be satisfied
+- `?A` A is evaluated and doesn't have to be satisfied
 - `A & B` both A and B must be satisfied
 - `A | B` either A or B must be satisfied
 
@@ -78,5 +79,5 @@ Variables are criteria that can be used in multiple places. If the variable name
 `{text}criteria` and `{text}` set and use a variable node, respectively (so you can connect a node to multiple things)
 
 ## Extra
-- `// Comment` and `/* Comment */` - self explanatory
+- `\ Comment` and `\ Comment \` - self explanatory
 
