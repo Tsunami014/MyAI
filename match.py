@@ -281,6 +281,7 @@ class Connection(Joinable, Joiner):
                         yield c
                         if dir["after"] == 1:
                             break
+                    idx += 1
             if bef:
                 idx -= 1
                 while idx >= 0:
@@ -289,6 +290,7 @@ class Connection(Joinable, Joiner):
                         yield c
                         if dir["before"] == 1:
                             break
+                    idx -= 1
         if dir["parent"] >= 1:
             yield par
             if dir["parent"] >= 2:
@@ -437,8 +439,10 @@ class Match:
         # Return collected rule
         yield Group(None, out, Generator.AND)
 
-    def __call__(self, parsed, blacklist=None):
+    def __call__(self, parsed, *, blacklist=None, whitelist=None):
         for nam, r in self.rules.items():
-            if (blacklist is None or nam in blacklist) and r(parsed):
-                yield nam
+            if ((blacklist is None or nam not in blacklist) and
+                (whitelist is None or nam in whitelist) and
+                r(parsed)):
+                    yield nam
 

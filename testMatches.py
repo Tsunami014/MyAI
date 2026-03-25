@@ -16,7 +16,7 @@ def test(mat, doc, correct):
     if correct == "":
         itr = mat(doc)
         return next(itr, None) is None
-    for nam in mat(doc, [correct]):
+    for nam in mat(doc, whitelist=[correct]):
         if nam == correct:
             return True
     return False

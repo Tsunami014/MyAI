@@ -1,8 +1,11 @@
 from base import NLP
+from match import Match
 
 def is_root(token):
-    return token.pos_ in {"VERB", "AUX"} and \
-        (token.dep_ in {"ROOT", "conj"} or token.dep_[1:] == "comp")
+    return token.dep_ == "ROOT" or (
+        token.pos_ in {"VERB", "AUX"} and
+        (token.dep_ in {"conj"} or token.dep_[1:] == "comp")
+    )
 
 class QualityTypes:
     VALUE = 'V'
@@ -260,26 +263,54 @@ class ParserResults:
                 yield tok
 
 class Parser:
-    __slots__ = ['nlp']
-    def __init__(self):
+    __slots__ = ['nlp', 'matches']
+    def __init__(self, matches=[]):
         self.nlp = NLP()
-    def debug_tree(self, token, level=0):
+        self.matches = [Match(m) for m in matches]
+
+    def _debug_tree(self, token, level=0):
         base = "" if token.lemma_ == token.text else f" ({token.lemma_})"
         xtra = "" if not token.morph else " - "+str(token.morph)
-        txt = f"{token.text}{base} {token.pos_}, {token.dep_}"+xtra
+        txt = f"│\033[35;1m{token.text}{base}\033[0;33m {token.pos_}, {token.dep_}\033[0m"+xtra
 
         outs = ["  " * level + txt]
         for child in token.children:
-            outs.append(self.debug_tree(child, level + 1))
+            outs.append(self._debug_tree(child, level + 1))
         return '\n'.join(outs)
 
-    def tree_dbug(self, txt):
-        doc = self.nlp(txt)
-        roots = [Tok(t) for t in doc if is_root(t)]
-        return '\n'.join(r.prt_tree() for r in roots)
+    def _match_tree(self, res):
+        return res
 
-    def tree(self, txt):
-        return '\n'.join(r.prt_tree() for r in self(txt).roots)
+    def allMatches(self, results):
+        for m in self.matches:
+            yield from m(results)
+
+    def tree(self, txt, debug=0):
+        if debug == 0:
+            # No debug
+            out = []
+            for res in self.allMatches(self(txt)):
+                out.append(self._match_tree(res))
+            return '\n'.join(out)
+        elif debug == 1:
+            # See before matched
+            return '\n'.join(r.prt_tree() for r in self(txt).roots)
+        elif debug == 2:
+            # Do not strip anything
+            doc = self.nlp(txt)
+            roots = [Tok(t) for t in doc if is_root(t)]
+            return '\n'.join(r.prt_tree() for r in roots)
+        elif debug == 3:
+            # Full debug
+            doc = self.nlp(txt)
+            roots = [t for t in doc if is_root(t)]
+            return '\n'.join(self._debug_tree(r) for r in roots)
+        elif debug == 4:
+            # Full full debug (unstripped)
+            doc = self.nlp(txt)
+            roots = [t for t in doc if t.head == t]
+            return '\n'.join(self._debug_tree(r) for r in roots)
+        return "Bad debug value"
 
     def __call__(self, txt):
         doc = self.nlp(txt)
