@@ -52,6 +52,7 @@ Combinations:
 - `A --= B` B must be a sibling of A
 - `A --| B` B must be a child or direct parent of A
 - `A --+ B` B must be a direct sibling, child or parent of A
+- `A --# B` B must be a sibling or direct child or parent of A
 - `A --* B` B must be a sibling, child or direct parent of A
 
 Extra:

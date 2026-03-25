@@ -96,7 +96,9 @@ class Tok:
         if self.tok.pos_ in {"PART", "DET"} or self.tok.dep_ in {"det"}:
             keep = False
 
-        if self.tok.pos_ == "PRON" and "PronType" in morph:
+        if self.tok.pos_ == "PRON" and "PronType" in morph and (
+                "subj" not in self.tok.dep_ and "obj" not in self.tok.dep_
+                ):
             vals = {
                 "Prs": "I",
                 "Rcp": "we",
@@ -293,20 +295,24 @@ class Parser:
                 out.append(self._match_tree(res))
             return '\n'.join(out)
         elif debug == 1:
-            # See before matched
-            return '\n'.join(r.prt_tree() for r in self(txt).roots)
+            # Debug matching
+            out = []
+            for res in self.allMatches(self(txt)):
+                out.append(res)
+            match = f"Matches: {', '.join(out)}\n" if out != [] else "\n"
+            return match + '\n'.join(r.prt_tree() for r in self(txt).roots)
         elif debug == 2:
-            # Do not strip anything
+            # Debug stripped
             doc = self.nlp(txt)
             roots = [Tok(t) for t in doc if is_root(t)]
             return '\n'.join(r.prt_tree() for r in roots)
         elif debug == 3:
-            # Full debug
+            # Full debug (no parsing)
             doc = self.nlp(txt)
             roots = [t for t in doc if is_root(t)]
             return '\n'.join(self._debug_tree(r) for r in roots)
         elif debug == 4:
-            # Full full debug (unstripped)
+            # Full full debug (virtually original text)
             doc = self.nlp(txt)
             roots = [t for t in doc if t.head == t]
             return '\n'.join(self._debug_tree(r) for r in roots)

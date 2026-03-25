@@ -22,6 +22,9 @@ class Rule:
     def __init__(self, txt):
         pass
     def combine(self, nxt):
+        # If False will save this to the list (will NOT combine with the next)
+        # If True it WILL combine, meaning the next rule is skipped
+        # If None will combine backwards (this object becomes None)
         return False
     def combineLast(self):
         return
@@ -29,6 +32,12 @@ class Rule:
         pass
     def __call__(self, parsed):
         return False
+
+    def __repr__(self):
+        slots = {nam: getattr(self, nam) for nam in self.__slots__ if nam[0] != '_'}
+        sltstxt = ", ".join(
+                i+"="+(rpr if len(rpr:=repr(j)) < 25 else rpr[:25]+"...") for i, j in slots.items())
+        return f"<{self.__class__.__name__} {sltstxt}>"
 
 class Joinable(Rule):
     __slots__ = ['_nodecache', '_finder', '_parserid']
@@ -39,8 +48,8 @@ class Joinable(Rule):
     def combine(self, nxt):
         if isinstance(nxt, Joiner):
             nxt.bef = self
-            return False
-        return True
+            return None
+        return False
 
     def get_nodes(self, parsed):
         pid = id(parsed)
@@ -86,8 +95,9 @@ class Joiner:
         self.aft = None
         self.typ = txt
     def combine(self, nxt):
-        if isinstance(nxt, Joinable):
+        if self.aft is None and isinstance(nxt, Joinable):
             self.aft = nxt
+            return True
         return False
     def combineLast(self):
         raise ValueError(
@@ -187,10 +197,11 @@ class Criteria(Joinable):
                         return True
                 return False
             return match in againsts
+        against = against if caseSense else against.lower()
         if mina or ainm:
-            if mina and match in a:
+            if mina and match in against:
                 return True
-            if ainm and a in match:
+            if ainm and against in match:
                 return True
             return False
         return match == against
@@ -216,6 +227,7 @@ class Connection(Joinable, Joiner):
             typ = "+"
         typ = (typ
             .replace('*', '|=')
+            .replace('#', ':=')
             .replace('+', ':"')
             .replace('|', '^v')
             .replace(':', '^.')
@@ -309,11 +321,17 @@ class Connection(Joinable, Joiner):
                     yield o
 
     def combine(self, nxt):
-        if isinstance(nxt, Joiner):
-            nxt.bef = self
-            self.aft = nxt
-        elif isinstance(nxt, Joinable):
-            self.aft = nxt
+        if self.aft is None:
+            if isinstance(nxt, Joinable):
+                self.aft = nxt
+                return True
+        else:
+            if isinstance(self.aft, Joiner):
+                return self.aft.combine(nxt)
+            elif isinstance(nxt, Joiner):
+                nxt.bef = self.aft
+                self.aft = nxt
+                return True
         return False
 
 class Generator:
@@ -329,7 +347,6 @@ class Generator:
 
 class Combination(Joiner, Rule):
     _OPTS = {
-        "?": lambda _: True,
         "!": lambda a: not a,
         "|": Generator.OR,
         "&": Generator.AND,
@@ -347,13 +364,17 @@ class Combination(Joiner, Rule):
         return Generator(parsed, (self.bef, self.aft), self._OPTS[self.typ])
 
 class Group(Rule):
-    __slots__ = ['children', 'func']
+    __slots__ = ['children', 'func', 'done']
     def __init__(self, _, children=None, func=Generator.AND):
         self.children = children or []
         self.func = func
+        self.done = False
     def combine(self, nxt):
-        if type(nxt) is GroupEnd:
+        if self.done:
             return False
+        if type(nxt) is GroupEnd:
+            self.done = True
+            return True
         self.children.append(nxt)
         return True
     def combineLast(self):
@@ -394,9 +415,9 @@ class Match:
 
     def parser(self):
         collected = ""
-        comment = False
         out = []
         last = None
+        comment = False
 
         def end():
             nonlocal collected, last
@@ -405,8 +426,11 @@ class Match:
                 if last is None:
                     last = new
                 else:
-                    if not last.combine(new):
+                    comb = last.combine(new)
+                    if comb is False:
                         out.append(last)
+                        last = new
+                    elif comb is None:
                         last = new
                 collected = ""
 
@@ -439,10 +463,8 @@ class Match:
         # Return collected rule
         yield Group(None, out, Generator.AND)
 
-    def __call__(self, parsed, *, blacklist=None, whitelist=None):
+    def __call__(self, parsed, blacklist=None):
         for nam, r in self.rules.items():
-            if ((blacklist is None or nam not in blacklist) and
-                (whitelist is None or nam in whitelist) and
-                r(parsed)):
-                    yield nam
+            if (blacklist is None or nam in blacklist) and r(parsed):
+                yield nam
 
