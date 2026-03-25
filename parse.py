@@ -27,13 +27,14 @@ class Quality:
         return str(self)
 
 class Tok:
-    __slots__ = ['tok', 'children', 'info', 'personalInfo']
-    def __init__(self, token):
+    __slots__ = ['tok', 'parent', 'children', 'usefulChildren', 'info', 'personalInfo']
+    def __init__(self, token, parent=None):
         self.tok = token
+        self.parent = parent
         self.children = []
         self.info = []
         for c in token.children:
-            t = Tok(c)
+            t = Tok(c, self)
             appl, keep = t.application(self.tok)
             if keep:
                 self.children.append(t)
@@ -42,6 +43,12 @@ class Tok:
         self.parse()
     def parse(self):
         pass
+
+    def flatten(self, all=True, includethis=True):
+        if includethis:
+            yield self
+        for c in (self.children if all else self.usefulChildren):
+            yield from c.flatten(all)
 
     def _apply_map(self, morph, mapping, appls):
         for k, v in morph.items():
@@ -193,8 +200,11 @@ class Tok:
 
     def prune_children(self, roots):
         self.children = [c if c not in roots else TokRef(c) for c in self.children]
+        self.usefulChildren = []
         for c in self.children:
             c.prune_children(roots)
+            if c.Usage() != "":
+                self.usefulChildren.append(c)
 
     def __str__(self):
         use = self.Usage()
@@ -235,6 +245,20 @@ class TokRef(Tok):
         return "-> "+super().__str__()
 
 
+class ParserResults:
+    __slots__ = ['_id', 'roots']
+    def __init__(self, roots):
+        self.roots = roots
+
+    def flatten(self):
+        for r in self.roots:
+            yield from r.flatten()
+
+    def find(self, matchfn):
+        for tok in self.flatten():
+            if matchfn(tok):
+                yield tok
+
 class Parser:
     __slots__ = ['nlp']
     def __init__(self):
@@ -249,10 +273,13 @@ class Parser:
             outs.append(self.debug_tree(child, level + 1))
         return '\n'.join(outs)
 
-    def dbug(self, txt):
+    def tree_dbug(self, txt):
         doc = self.nlp(txt)
-        roots = [t for t in doc if is_root(t)]
-        return '\n'.join(self.debug_tree(r) for r in roots)
+        roots = [Tok(t) for t in doc if is_root(t)]
+        return '\n'.join(r.prt_tree() for r in roots)
+
+    def tree(self, txt):
+        return '\n'.join(r.prt_tree() for r in self(txt).roots)
 
     def __call__(self, txt):
         doc = self.nlp(txt)
@@ -260,5 +287,5 @@ class Parser:
         for r in roots:
             r.prune_children(roots)
 
-        return '\n'.join(r.prt_tree() for r in roots)
+        return ParserResults(roots)
 

@@ -10,11 +10,11 @@ brk = False
 while True:
     print("\033[2J\033[1;1H\033[0m", end="")
     print("\033[34m"+txt)
-    parsed = p(txt)
+    parsed = p.tree(txt)
     if parsed == "":
         parsed = "\n\033[90mNo output"
     if brk:
-        print(parsed)
+        print(parsed+"\033[0m")
         break
     print("\033[0m"+parsed, end=f"\033[1;{len(txt)+1}H\033[90m", flush=True)
     try:

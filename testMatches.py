@@ -1,10 +1,10 @@
 from match import Match
-from base import NLP
+from parse import Parser
 
 TESTS = {
     "test": {
         "HELLO": [
-            "hello, world",
+            "please print hello, world",
         ],
         "": [
             "I shall not be happy about no world",
@@ -16,13 +16,13 @@ def test(mat, doc, correct):
     if correct == "":
         itr = mat(doc)
         return next(itr, None) is None
-    for id, _ in mat(doc):
-        if id == correct:
+    for nam in mat(doc, [correct]):
+        if nam == correct:
             return True
     return False
 
 if __name__ == "__main__":
-    doc = NLP()
+    p = Parser()
     for nam, t in TESTS.items():
         print(f"Testing '{nam}'\n│ ", end="")
         m = Match(nam)
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         for correct, li in t.items():
             for it in li:
                 amnt += 1
-                if test(m, doc(it), correct):
+                if test(m, p(it), correct):
                     success += 1
                     print(".", end="")
                 else:
