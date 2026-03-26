@@ -67,7 +67,7 @@ A connector must contain at least one of the following in it somewhere (and not 
 
 ## Combining
 Can use brackets `()` for control over the ordering of these
-These can apply to either criteria or connections (a criteria is just a node existing), but will default to combining criteria unless you use brackets
+These can apply to either criteria or connections (a criteria is just a node existing)
 They are calculated in this order of operations:
 - `!A` A must not be satisfied
 - `?A` A is evaluated and doesn't have to be satisfied

@@ -264,6 +264,13 @@ class ParserResults:
             if matchfn(tok):
                 yield tok
 
+    def __iter__(self):
+        return (self[i] for i in range(len(self)))
+    def __len__(self):
+        return len(self.roots)
+    def __getitem__(self, it):
+        return ParserResults([self.roots[it]])
+
 class Parser:
     __slots__ = ['nlp', 'matches']
     def __init__(self, matches=[]):
@@ -280,8 +287,8 @@ class Parser:
             outs.append(self._debug_tree(child, level + 1))
         return '\n'.join(outs)
 
-    def _match_tree(self, res):
-        return res
+    def _match_tree(self, nam, res):
+        return f"{nam}: {len(res)} matches"
 
     def allMatches(self, results):
         for m in self.matches:
@@ -290,10 +297,17 @@ class Parser:
     def tree(self, txt, debug=0):
         if debug == 0:
             # No debug
-            out = []
-            for res in self.allMatches(self(txt)):
-                out.append(self._match_tree(res))
-            return '\n'.join(out)
+            from collections import defaultdict
+            out = defaultdict(list)
+            for r in self(txt):
+                for m in self.allMatches(r):
+                    out[m].append(r.roots[0])
+            end = []
+            for res in out:
+                if len(res) != 0:
+                    o = self._match_tree(res, out[res])
+                    end.append(o)
+            return '\n'.join(end)
         elif debug == 1:
             # Debug matching
             out = []

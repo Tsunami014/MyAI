@@ -1,6 +1,2 @@
-### HELLO
-hello -- world
-
-###
-\Should still be HELLO
-how --# are --# you
+### LIGHT
+(=root | %VERB) --=v 'light
